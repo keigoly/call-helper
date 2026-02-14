@@ -57,7 +57,8 @@ BlueBean 連携用 音声ガイダンス＆録音制御アプリ
   2. HARDWARE INPUT 1 → 物理マイクを選択
   3. HARDWARE INPUT 2 → WDM: CABLE Output (VB-Audio Virtual Cable) を選択
   4. 両方の入力で「B1」ボタンを有効にする
-  5. BlueBean のマイク入力を「VoiceMeeter Output」に変更する
+  5. BlueBean の「その他設定」→「マイク」を「Voicemeeter Out B1」に変更する
+     ※ この設定は常にそのままで OK（ガイダンス未使用時も変更不要）
 
   ※ Menu → System Tray (Run at Startup) で自動起動を推奨
 
