@@ -19,7 +19,7 @@ from audio_devices import (
     mute_physical_mic,
     unmute_physical_mic,
 )
-from config_loader import load_config
+from config_loader import load_config, _base_dir
 
 logger = logging.getLogger(__name__)
 
@@ -49,8 +49,7 @@ def run(number: str | None = None) -> None:
         guidance_file = config.get("general", "guidance_file")
         # 相対パスの場合は config.ini と同じディレクトリを基準にする
         if not os.path.isabs(guidance_file):
-            base_dir = os.path.dirname(os.path.abspath(__file__))
-            guidance_file = os.path.join(base_dir, guidance_file)
+            guidance_file = os.path.join(_base_dir(), guidance_file)
 
         if not os.path.isfile(guidance_file):
             logger.warning("音声ファイルが見つかりません: %s — ミュート解除して終了します", guidance_file)
