@@ -11,6 +11,9 @@ BlueBean 連携用 音声ガイダンス＆録音制御アプリ
   - Python 3.10 以上
   - VB-Audio Virtual Cable がインストール済み
     https://vb-audio.com/Cable/
+  - VoiceMeeter がインストール済み（音声ミキサー）
+    https://vb-audio.com/Voicemeeter/
+    ※ 物理マイクとガイダンス音声を合成して BlueBean に送るために必要
   - FFmpeg がインストール済み（WAV→MP3 変換に必要）
     https://ffmpeg.org/download.html
     ※ ffmpeg.exe に PATH が通っていること
@@ -46,6 +49,17 @@ BlueBean 連携用 音声ガイダンス＆録音制御アプリ
 
   生成された dist\call_helper.exe と同じフォルダに config.ini と
   guidance.mp3 を配置して使用してください。
+
+■ VoiceMeeter の設定
+  物理マイクとガイダンス音声を合成して BlueBean に送るための設定です。
+
+  1. VoiceMeeter を起動
+  2. HARDWARE INPUT 1 → 物理マイクを選択
+  3. HARDWARE INPUT 2 → WDM: CABLE Output (VB-Audio Virtual Cable) を選択
+  4. 両方の入力で「B1」ボタンを有効にする
+  5. BlueBean のマイク入力を「VoiceMeeter Output」に変更する
+
+  ※ Menu → System Tray (Run at Startup) で自動起動を推奨
 
 ■ BlueBean との連携設定
   BlueBean の設定画面から「コマンド連携設定」タブを開き、
