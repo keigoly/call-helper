@@ -35,3 +35,4 @@ def format_duration(seconds):
         hours = seconds // 3600
         mins = (seconds % 3600) // 60
         return f"{hours}h {mins}m"
+# utils module
