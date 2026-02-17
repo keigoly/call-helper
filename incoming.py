@@ -18,6 +18,8 @@ from audio_devices import (
     find_virtual_cable_device,
     mute_physical_mic,
     unmute_physical_mic,
+    mute_speaker,
+    unmute_speaker,
 )
 from config_loader import load_config, _base_dir
 
@@ -42,6 +44,17 @@ def run(number: str | None = None) -> None:
         mute_physical_mic()
     except Exception:
         logger.error("マイクミュートに失敗しました。処理を中断します。")
+        return
+
+    # --- 1b. スピーカーをミュート（相手の音声を遮断） ---
+    try:
+        mute_speaker()
+    except Exception:
+        logger.error("スピーカーミュートに失敗しました。処理を中断します。")
+        try:
+            unmute_physical_mic()
+        except Exception:
+            logger.exception("ミュート解除に失敗しました")
         return
 
     try:
@@ -80,3 +93,7 @@ def run(number: str | None = None) -> None:
             unmute_physical_mic()
         except Exception:
             logger.exception("ミュート解除に失敗しました — 手動でミュート解除してください")
+        try:
+            unmute_speaker()
+        except Exception:
+            logger.exception("スピーカーのミュート解除に失敗しました — 手動で解除してください")

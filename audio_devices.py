@@ -1,6 +1,7 @@
 """オーディオデバイス操作ユーティリティ。
 
 - 物理マイクのミュート / ミュート解除 (pycaw)
+- スピーカー（再生デバイス）のミュート / ミュート解除 (pycaw)
 - VB-CABLE Input デバイスの検索 (sounddevice)
 """
 
@@ -47,6 +48,40 @@ def unmute_physical_mic() -> None:
         logger.info("物理マイクのミュートを解除しました")
     except Exception:
         logger.exception("物理マイクのミュート解除に失敗しました")
+        raise
+
+
+# ---------- スピーカー（再生デバイス）のミュート制御 ----------
+
+def _get_speaker_endpoint_volume() -> "IAudioEndpointVolume":
+    """デフォルト再生デバイスの IAudioEndpointVolume を取得する。"""
+    comtypes.CoInitialize()
+    devices = AudioUtilities.GetSpeakers()
+    if devices is None:
+        raise RuntimeError("デフォルトの再生デバイスが見つかりません")
+    interface = devices.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
+    return cast(interface, POINTER(IAudioEndpointVolume))
+
+
+def mute_speaker() -> None:
+    """デフォルト再生デバイス（スピーカー）をミュートする。"""
+    try:
+        volume = _get_speaker_endpoint_volume()
+        volume.SetMute(1, None)
+        logger.info("スピーカーをミュートしました")
+    except Exception:
+        logger.exception("スピーカーのミュートに失敗しました")
+        raise
+
+
+def unmute_speaker() -> None:
+    """デフォルト再生デバイス（スピーカー）のミュートを解除する。"""
+    try:
+        volume = _get_speaker_endpoint_volume()
+        volume.SetMute(0, None)
+        logger.info("スピーカーのミュートを解除しました")
+    except Exception:
+        logger.exception("スピーカーのミュート解除に失敗しました")
         raise
 
 
