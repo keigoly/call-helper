@@ -1,10 +1,10 @@
 """オーディオデバイス操作ユーティリティ。
 
 - 物理マイクのミュート / ミュート解除 (pycaw)
-- スピーカー（再生デバイス）のミュート / ミュート解除 (pycaw)
 - VB-CABLE Input デバイスの検索 (sounddevice)
 """
 
+import gc
 import logging
 from typing import Optional
 
@@ -16,39 +16,48 @@ from pycaw.pycaw import IAudioEndpointVolume
 
 logger = logging.getLogger(__name__)
 
+# COM DeviceEnumerator の CLSID（Windows 標準、不変）
+_CLSID_MMDeviceEnumerator = comtypes.GUID(
+    "{BCDE0395-E52F-467C-8E3D-C4579291692E}"
+)
 
-# ---------- 物理マイクのミュート制御 ----------
 
-def _get_mic_endpoint_volume() -> "IAudioEndpointVolume":
-    """デフォルト録音デバイスの IAudioEndpointVolume を取得する。
+def _set_mic_mute(mute: bool) -> None:
+    """デフォルト録音デバイスのミュート状態を設定する。
 
-    AudioUtilities.GetMicrophone() が一部環境で AudioDevice ラッパーを返し
-    Activate() が使えないケースがあるため、COM を直接操作する。
+    COM オブジェクトを関数内で生成・操作・解放まで完結させ、
+    ガベージコレクション時の COM ポインタ解放エラーを防ぐ。
     """
     comtypes.CoInitialize()
     from pycaw.pycaw import IMMDeviceEnumerator
 
-    CLSID_MMDeviceEnumerator = comtypes.GUID(
-        "{BCDE0395-E52F-467C-8E3D-C4579291692E}"
-    )
-    enumerator = comtypes.CoCreateInstance(
-        CLSID_MMDeviceEnumerator,
-        IMMDeviceEnumerator,
-        comtypes.CLSCTX_INPROC_SERVER,
-    )
-    # eCapture=1, eMultimedia=1
-    mic = enumerator.GetDefaultAudioEndpoint(1, 1)
-    if mic is None:
-        raise RuntimeError("デフォルトの録音デバイスが見つかりません")
-    interface = mic.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
-    return cast(interface, POINTER(IAudioEndpointVolume))
+    enumerator = None
+    mic = None
+    interface = None
+    volume = None
+    try:
+        enumerator = comtypes.CoCreateInstance(
+            _CLSID_MMDeviceEnumerator,
+            IMMDeviceEnumerator,
+            comtypes.CLSCTX_INPROC_SERVER,
+        )
+        # eCapture=1, eMultimedia=1
+        mic = enumerator.GetDefaultAudioEndpoint(1, 1)
+        if mic is None:
+            raise RuntimeError("デフォルトの録音デバイスが見つかりません")
+        interface = mic.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
+        volume = cast(interface, POINTER(IAudioEndpointVolume))
+        volume.SetMute(1 if mute else 0, None)
+    finally:
+        # COM オブジェクトを明示的に解放してから GC で回収
+        del volume, interface, mic, enumerator
+        gc.collect()
 
 
 def mute_physical_mic() -> None:
     """デフォルト物理マイクをミュートする。"""
     try:
-        volume = _get_mic_endpoint_volume()
-        volume.SetMute(1, None)
+        _set_mic_mute(True)
         logger.info("物理マイクをミュートしました")
     except Exception:
         logger.exception("物理マイクのミュートに失敗しました")
@@ -58,60 +67,10 @@ def mute_physical_mic() -> None:
 def unmute_physical_mic() -> None:
     """デフォルト物理マイクのミュートを解除する。"""
     try:
-        volume = _get_mic_endpoint_volume()
-        volume.SetMute(0, None)
+        _set_mic_mute(False)
         logger.info("物理マイクのミュートを解除しました")
     except Exception:
         logger.exception("物理マイクのミュート解除に失敗しました")
-        raise
-
-
-# ---------- スピーカー（再生デバイス）のミュート制御 ----------
-
-def _get_speaker_endpoint_volume() -> "IAudioEndpointVolume":
-    """デフォルト再生デバイスの IAudioEndpointVolume を取得する。
-
-    AudioUtilities.GetSpeakers() が一部環境で AudioDevice ラッパーを返し
-    Activate() が使えないケースがあるため、COM を直接操作する。
-    """
-    comtypes.CoInitialize()
-    from pycaw.pycaw import IMMDeviceEnumerator
-
-    CLSID_MMDeviceEnumerator = comtypes.GUID(
-        "{BCDE0395-E52F-467C-8E3D-C4579291692E}"
-    )
-    enumerator = comtypes.CoCreateInstance(
-        CLSID_MMDeviceEnumerator,
-        IMMDeviceEnumerator,
-        comtypes.CLSCTX_INPROC_SERVER,
-    )
-    # eRender=0, eMultimedia=1
-    speakers = enumerator.GetDefaultAudioEndpoint(0, 1)
-    if speakers is None:
-        raise RuntimeError("デフォルトの再生デバイスが見つかりません")
-    interface = speakers.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
-    return cast(interface, POINTER(IAudioEndpointVolume))
-
-
-def mute_speaker() -> None:
-    """デフォルト再生デバイス（スピーカー）をミュートする。"""
-    try:
-        volume = _get_speaker_endpoint_volume()
-        volume.SetMute(1, None)
-        logger.info("スピーカーをミュートしました")
-    except Exception:
-        logger.exception("スピーカーのミュートに失敗しました")
-        raise
-
-
-def unmute_speaker() -> None:
-    """デフォルト再生デバイス（スピーカー）のミュートを解除する。"""
-    try:
-        volume = _get_speaker_endpoint_volume()
-        volume.SetMute(0, None)
-        logger.info("スピーカーのミュートを解除しました")
-    except Exception:
-        logger.exception("スピーカーのミュート解除に失敗しました")
         raise
 
 
