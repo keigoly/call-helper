@@ -14,8 +14,8 @@ import time
 import wave
 from datetime import datetime
 
+import lameenc
 import sounddevice as sd
-from pydub import AudioSegment
 
 from audio_devices import find_input_device
 from config_loader import load_config, _base_dir
@@ -28,8 +28,27 @@ _STOP_FILE = ".stop_recording"
 
 # 録音パラメータ
 _SAMPLE_RATE = 44100
-_CHANNELS = 2
+_CHANNELS = 2  # ステレオ（デバイスが対応しない場合は自動調整）
 _DTYPE = "int16"
+
+
+def _wav_to_mp3(wav_path: str, mp3_path: str, sample_rate: int, channels: int) -> None:
+    """lameenc を使って WAV → MP3 変換する（ffmpeg 不要）。"""
+    with wave.open(wav_path, "rb") as wf:
+        pcm_data = wf.readframes(wf.getnframes())
+
+    encoder = lameenc.Encoder()
+    encoder.set_bit_rate(128)
+    encoder.set_in_sample_rate(sample_rate)
+    encoder.set_channels(channels)
+    encoder.set_quality(2)  # 0=best, 9=fastest
+
+    mp3_data = encoder.encode(pcm_data)
+    mp3_data += encoder.flush()
+
+    with open(mp3_path, "wb") as f:
+        f.write(mp3_data)
+    logger.info("MP3 ファイルを保存しました: %s", mp3_path)
 
 
 def _signal_path(filename: str) -> str:
@@ -64,6 +83,12 @@ def run(number: str | None = None) -> None:
         logger.error("録音デバイス '%s' が見つかりません。録音を中止します。", device_name)
         return
 
+    # --- チャンネル数の自動検出 ---
+    dev_info = sd.query_devices(device_index)
+    max_ch = dev_info["max_input_channels"]
+    channels = min(_CHANNELS, max_ch) if max_ch > 0 else _CHANNELS
+    logger.info("録音チャンネル数: %d (デバイス最大: %d)", channels, max_ch)
+
     # --- ファイル名の決定 ---
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     number_part = f"_{number}" if number else ""
@@ -97,7 +122,7 @@ def run(number: str | None = None) -> None:
     logger.info("安全上限: %d 分", max_duration_min)
 
     wf = wave.open(wav_path, "wb")
-    wf.setnchannels(_CHANNELS)
+    wf.setnchannels(channels)
     wf.setsampwidth(2)  # int16 = 2 bytes
     wf.setframerate(_SAMPLE_RATE)
 
@@ -109,7 +134,7 @@ def run(number: str | None = None) -> None:
     try:
         with sd.InputStream(
             samplerate=_SAMPLE_RATE,
-            channels=_CHANNELS,
+            channels=channels,
             dtype=_DTYPE,
             device=device_index,
             callback=_audio_callback,
@@ -135,12 +160,10 @@ def run(number: str | None = None) -> None:
         elapsed_total = time.time() - start_time
         logger.info("録音を停止しました (録音時間: %.1f 秒)", elapsed_total)
 
-        # --- WAV → MP3 変換 ---
+        # --- WAV → MP3 変換（lameenc 使用、ffmpeg 不要） ---
         logger.info("WAV → MP3 変換中: %s", wav_path)
         try:
-            audio = AudioSegment.from_wav(wav_path)
-            audio.export(mp3_path, format="mp3", bitrate="128k")
-            logger.info("MP3 ファイルを保存しました: %s", mp3_path)
+            _wav_to_mp3(wav_path, mp3_path, _SAMPLE_RATE, channels)
 
             # WAV ファイルを削除
             os.remove(wav_path)
