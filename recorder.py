@@ -83,11 +83,13 @@ def run(number: str | None = None) -> None:
         logger.error("録音デバイス '%s' が見つかりません。録音を中止します。", device_name)
         return
 
-    # --- チャンネル数の自動検出 ---
+    # --- デバイス情報の自動検出 ---
     dev_info = sd.query_devices(device_index)
     max_ch = dev_info["max_input_channels"]
     channels = min(_CHANNELS, max_ch) if max_ch > 0 else _CHANNELS
+    sample_rate = int(dev_info["default_samplerate"])
     logger.info("録音チャンネル数: %d (デバイス最大: %d)", channels, max_ch)
+    logger.info("録音サンプルレート: %d Hz (デバイスデフォルト)", sample_rate)
 
     # --- ファイル名の決定 ---
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -124,7 +126,7 @@ def run(number: str | None = None) -> None:
     wf = wave.open(wav_path, "wb")
     wf.setnchannels(channels)
     wf.setsampwidth(2)  # int16 = 2 bytes
-    wf.setframerate(_SAMPLE_RATE)
+    wf.setframerate(sample_rate)
 
     def _audio_callback(indata, frames, time_info, status):
         if status:
@@ -133,7 +135,7 @@ def run(number: str | None = None) -> None:
 
     try:
         with sd.InputStream(
-            samplerate=_SAMPLE_RATE,
+            samplerate=sample_rate,
             channels=channels,
             dtype=_DTYPE,
             device=device_index,
@@ -163,7 +165,7 @@ def run(number: str | None = None) -> None:
         # --- WAV → MP3 変換（lameenc 使用、ffmpeg 不要） ---
         logger.info("WAV → MP3 変換中: %s", wav_path)
         try:
-            _wav_to_mp3(wav_path, mp3_path, _SAMPLE_RATE, channels)
+            _wav_to_mp3(wav_path, mp3_path, sample_rate, channels)
 
             # WAV ファイルを削除
             os.remove(wav_path)
