@@ -11,11 +11,12 @@ import logging
 import os
 import sys
 import time
-import wave
 from datetime import datetime
 
+import numpy as np
 import lameenc
 import sounddevice as sd
+import soundfile as sf
 
 from audio_devices import find_input_device
 from config_loader import load_config, _base_dir
@@ -27,16 +28,12 @@ _PID_FILE = ".recording.pid"
 _STOP_FILE = ".stop_recording"
 
 # 録音パラメータ
-_SAMPLE_RATE = 44100
 _CHANNELS = 2  # ステレオ（デバイスが対応しない場合は自動調整）
 _DTYPE = "int16"
 
 
-def _wav_to_mp3(wav_path: str, mp3_path: str, sample_rate: int, channels: int) -> None:
-    """lameenc を使って WAV → MP3 変換する（ffmpeg 不要）。"""
-    with wave.open(wav_path, "rb") as wf:
-        pcm_data = wf.readframes(wf.getnframes())
-
+def _pcm_to_mp3(pcm_data: bytes, sample_rate: int, channels: int) -> bytes:
+    """lameenc を使って PCM バイト列 → MP3 バイト列に変換する（ffmpeg 不要）。"""
     encoder = lameenc.Encoder()
     encoder.set_bit_rate(128)
     encoder.set_in_sample_rate(sample_rate)
@@ -45,10 +42,7 @@ def _wav_to_mp3(wav_path: str, mp3_path: str, sample_rate: int, channels: int) -
 
     mp3_data = encoder.encode(pcm_data)
     mp3_data += encoder.flush()
-
-    with open(mp3_path, "wb") as f:
-        f.write(mp3_data)
-    logger.info("MP3 ファイルを保存しました: %s", mp3_path)
+    return mp3_data
 
 
 def _signal_path(filename: str) -> str:
@@ -59,7 +53,8 @@ def _signal_path(filename: str) -> str:
 def run(number: str | None = None) -> None:
     """録音メイン処理。
 
-    VoiceMeeter Output から音声をキャプチャし、WAV → MP3 変換して保存する。
+    VoiceMeeter Output から音声をキャプチャし、MP3 形式で保存する。
+    音声データはメモリにバッファリングし、録音停止後に一括で変換・保存する。
 
     Parameters
     ----------
@@ -121,20 +116,18 @@ def run(number: str | None = None) -> None:
         logger.exception("PID ファイルの作成に失敗しました")
         return
 
-    # --- WAV ファイルを開いて録音開始 ---
+    # --- メモリバッファで録音開始 ---
     logger.info("録音を開始します: デバイス=[%d] %s", device_index, device_name)
     logger.info("出力先: %s", mp3_path)
     logger.info("安全上限: %d 分", max_duration_min)
 
-    wf = wave.open(wav_path, "wb")
-    wf.setnchannels(channels)
-    wf.setsampwidth(2)  # int16 = 2 bytes
-    wf.setframerate(sample_rate)
+    # 音声データをメモリに蓄積（list.append はスレッドセーフ）
+    audio_chunks: list[np.ndarray] = []
 
     def _audio_callback(indata, frames, time_info, status):
         if status:
             logger.warning("録音コールバック status: %s", status)
-        wf.writeframes(indata.copy().tobytes())
+        audio_chunks.append(indata.copy())
 
     try:
         with sd.InputStream(
@@ -161,16 +154,39 @@ def run(number: str | None = None) -> None:
                     logger.warning("安全上限 (%d 分) に達したため録音を停止します", max_duration_min)
                     break
 
-        wf.close()
         elapsed_total = time.time() - start_time
         logger.info("録音を停止しました (録音時間: %.1f 秒)", elapsed_total)
 
-        # --- WAV → MP3 変換（lameenc 使用、ffmpeg 不要） ---
-        logger.info("WAV → MP3 変換中: %s", wav_path)
-        try:
-            _wav_to_mp3(wav_path, mp3_path, sample_rate, channels)
+        # --- 音声データの結合 ---
+        if not audio_chunks:
+            logger.warning("録音データが空です")
+            return
 
-            # WAV ファイルを削除
+        audio_data = np.concatenate(audio_chunks, axis=0)
+        total_samples = audio_data.shape[0]
+        logger.info("録音データ: %d サンプル, shape=%s, dtype=%s",
+                     total_samples, audio_data.shape, audio_data.dtype)
+        logger.info("録音データ値範囲: min=%d, max=%d", audio_data.min(), audio_data.max())
+
+        # --- WAV ファイル保存（soundfile 使用、デバッグ用に残す） ---
+        logger.info("WAV ファイルを保存中: %s", wav_path)
+        sf.write(wav_path, audio_data, sample_rate, subtype='PCM_16')
+        wav_size = os.path.getsize(wav_path)
+        logger.info("WAV ファイルを保存しました: %s (%d bytes)", wav_path, wav_size)
+
+        # --- PCM → MP3 変換（lameenc 使用、ffmpeg 不要） ---
+        logger.info("PCM → MP3 変換中...")
+        pcm_bytes = audio_data.tobytes()
+        logger.info("PCM データサイズ: %d bytes", len(pcm_bytes))
+
+        try:
+            mp3_data = _pcm_to_mp3(pcm_bytes, sample_rate, channels)
+            with open(mp3_path, "wb") as f:
+                f.write(mp3_data)
+            mp3_size = os.path.getsize(mp3_path)
+            logger.info("MP3 ファイルを保存しました: %s (%d bytes)", mp3_path, mp3_size)
+
+            # WAV ファイルを削除（MP3 が正常に保存された場合のみ）
             os.remove(wav_path)
             logger.info("WAV ファイルを削除しました: %s", wav_path)
         except Exception:
@@ -178,10 +194,6 @@ def run(number: str | None = None) -> None:
 
     except Exception:
         logger.exception("録音中にエラーが発生しました")
-        try:
-            wf.close()
-        except Exception:
-            pass
     finally:
         # --- クリーンアップ ---
         for path in (pid_path, stop_path):
