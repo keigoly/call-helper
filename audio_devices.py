@@ -113,5 +113,9 @@ def find_input_device(device_name: str) -> Optional[int]:
             logger.info("入力デバイスを検出: [%d] %s", idx, dev["name"])
             return idx
 
-    logger.warning("入力デバイス '%s' が見つかりません", device_name)
+    # デバッグ用: 全入力デバイスを列挙
+    logger.warning("入力デバイス '%s' が見つかりません。利用可能な入力デバイス一覧:", device_name)
+    for idx, dev in enumerate(devices):
+        if dev["max_input_channels"] > 0:
+            logger.warning("  [%d] %s (入力ch=%d)", idx, dev["name"], dev["max_input_channels"])
     return None
