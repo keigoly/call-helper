@@ -1,11 +1,12 @@
 """機能A: 着信時ガイダンス制御。
 
-1. 物理マイクを即座にミュート
-2. guidance 音声ファイルの存在確認 → なければミュート解除して終了
-3. VB-CABLE Input デバイスを検索 → なければエラーログ出力＆ミュート解除して終了
-4. sounddevice + soundfile で音声を CABLE Input へ再生
-5. 再生完了を待機
-6. 物理マイクのミュート解除
+1. 物理マイクを即座にミュート（オペレーターの声を遮断）
+2. スピーカーをミュート（相手の声を遮断）※失敗してもガイダンス再生は続行
+3. guidance 音声ファイルの存在確認 → なければミュート解除して終了
+4. VB-CABLE Input デバイスを検索 → なければエラーログ出力＆ミュート解除して終了
+5. sounddevice + soundfile で音声を CABLE Input へ再生
+6. 再生完了を待機
+7. 物理マイクとスピーカーのミュート解除（通常通話に復帰）
 """
 
 import logging
@@ -47,15 +48,12 @@ def run(number: str | None = None) -> None:
         return
 
     # --- 1b. スピーカーをミュート（相手の音声を遮断） ---
+    speaker_muted = False
     try:
         mute_speaker()
+        speaker_muted = True
     except Exception:
-        logger.error("スピーカーミュートに失敗しました。処理を中断します。")
-        try:
-            unmute_physical_mic()
-        except Exception:
-            logger.exception("ミュート解除に失敗しました")
-        return
+        logger.warning("スピーカーミュートに失敗しました。ガイダンス再生は続行します。")
 
     try:
         # --- 2. 音声ファイルの存在確認 ---
@@ -93,7 +91,8 @@ def run(number: str | None = None) -> None:
             unmute_physical_mic()
         except Exception:
             logger.exception("ミュート解除に失敗しました — 手動でミュート解除してください")
-        try:
-            unmute_speaker()
-        except Exception:
-            logger.exception("スピーカーのミュート解除に失敗しました — 手動で解除してください")
+        if speaker_muted:
+            try:
+                unmute_speaker()
+            except Exception:
+                logger.exception("スピーカーのミュート解除に失敗しました — 手動で解除してください")

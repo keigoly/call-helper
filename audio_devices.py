@@ -12,7 +12,7 @@ import comtypes
 import sounddevice as sd
 from ctypes import POINTER, cast
 from comtypes import CLSCTX_ALL
-from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
+from pycaw.pycaw import IAudioEndpointVolume
 
 logger = logging.getLogger(__name__)
 
@@ -20,12 +20,27 @@ logger = logging.getLogger(__name__)
 # ---------- 物理マイクのミュート制御 ----------
 
 def _get_mic_endpoint_volume() -> "IAudioEndpointVolume":
-    """デフォルト録音デバイスの IAudioEndpointVolume を取得する。"""
+    """デフォルト録音デバイスの IAudioEndpointVolume を取得する。
+
+    AudioUtilities.GetMicrophone() が一部環境で AudioDevice ラッパーを返し
+    Activate() が使えないケースがあるため、COM を直接操作する。
+    """
     comtypes.CoInitialize()
-    devices = AudioUtilities.GetMicrophone()
-    if devices is None:
+    from pycaw.pycaw import IMMDeviceEnumerator
+
+    CLSID_MMDeviceEnumerator = comtypes.GUID(
+        "{BCDE0395-E52F-467C-8E3D-C4579291692E}"
+    )
+    enumerator = comtypes.CoCreateInstance(
+        CLSID_MMDeviceEnumerator,
+        IMMDeviceEnumerator,
+        comtypes.CLSCTX_INPROC_SERVER,
+    )
+    # eCapture=1, eMultimedia=1
+    mic = enumerator.GetDefaultAudioEndpoint(1, 1)
+    if mic is None:
         raise RuntimeError("デフォルトの録音デバイスが見つかりません")
-    interface = devices.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
+    interface = mic.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
     return cast(interface, POINTER(IAudioEndpointVolume))
 
 
@@ -54,12 +69,27 @@ def unmute_physical_mic() -> None:
 # ---------- スピーカー（再生デバイス）のミュート制御 ----------
 
 def _get_speaker_endpoint_volume() -> "IAudioEndpointVolume":
-    """デフォルト再生デバイスの IAudioEndpointVolume を取得する。"""
+    """デフォルト再生デバイスの IAudioEndpointVolume を取得する。
+
+    AudioUtilities.GetSpeakers() が一部環境で AudioDevice ラッパーを返し
+    Activate() が使えないケースがあるため、COM を直接操作する。
+    """
     comtypes.CoInitialize()
-    devices = AudioUtilities.GetSpeakers()
-    if devices is None:
+    from pycaw.pycaw import IMMDeviceEnumerator
+
+    CLSID_MMDeviceEnumerator = comtypes.GUID(
+        "{BCDE0395-E52F-467C-8E3D-C4579291692E}"
+    )
+    enumerator = comtypes.CoCreateInstance(
+        CLSID_MMDeviceEnumerator,
+        IMMDeviceEnumerator,
+        comtypes.CLSCTX_INPROC_SERVER,
+    )
+    # eRender=0, eMultimedia=1
+    speakers = enumerator.GetDefaultAudioEndpoint(0, 1)
+    if speakers is None:
         raise RuntimeError("デフォルトの再生デバイスが見つかりません")
-    interface = devices.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
+    interface = speakers.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
     return cast(interface, POINTER(IAudioEndpointVolume))
 
 
