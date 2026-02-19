@@ -171,10 +171,10 @@ STEP 6: config.ini の編集
      [audio]
      virtual_cable_name = CABLE Input (VB-Audio Virtual Cable)
 
-     [convert]
-     watch_folder = C:\Users\User\Downloads
+     [recording]
      output_folder = D:\CallRecordings
-     backup_folder = D:\CallRecordings\backup
+     recording_device = VoiceMeeter Output
+     max_duration_minutes = 120
      ---ここまで---
 
   4. 変更が必要な箇所:
@@ -186,20 +186,15 @@ STEP 6: config.ini の編集
      ● virtual_cable_name (通常は変更不要)
        STEP 2 でインストールした仮想デバイスの名前です。
 
-     ● watch_folder (環境に合わせて変更)
-       BlueBean が通話録音 WAV ファイルを保存するフォルダのパスを指定します。
-       例: C:\Users\YourName\Downloads
-
      ● output_folder (環境に合わせて変更)
-       変換後の MP3 ファイルを保存するフォルダのパスを指定します。
+       録音した MP3 ファイルの保存先フォルダです。
        例: D:\CallRecordings
 
-     ● backup_folder (環境に合わせて変更)
-       変換済みの元 WAV ファイルを退避するフォルダのパスを指定します。
-       例: D:\CallRecordings\backup
+     ● recording_device (通常は変更不要)
+       録音に使う入力デバイス名です。
 
-     ※ watch_folder / output_folder / backup_folder は
-       WAV→MP3 変換機能を使わない場合は変更不要です。
+     ● max_duration_minutes (通常は変更不要)
+       録音の安全上限（分）です。この時間を超えると自動停止します。
 
      【重要】値にダブルクォート（"）を付けないでください。
        正しい例: guidance_file = guidance.mp3
@@ -362,38 +357,6 @@ STEP 9: 通話録音機能の設定（任意）
 
 
 ==============================================================
-補足: WAV→MP3 変換機能について
-==============================================================
-
-  通話録音の WAV ファイルを MP3 に変換する機能です。
-  この機能を使う場合のみ、追加で FFmpeg のインストールが必要です。
-
-  ---------- FFmpeg のインストール ----------
-
-  1. 以下のサイトにアクセス:
-     https://www.gyan.dev/ffmpeg/builds/
-
-  2.「release builds」の中の
-    「ffmpeg-release-essentials.zip」をダウンロード
-
-  3. ZIP を展開する
-
-  4. 展開したフォルダの中の bin\ffmpeg.exe を
-     call_helper.exe と同じフォルダにコピーする
-
-  ---------- WAV→MP3 変換の実行方法 ----------
-
-  1. config.ini の watch_folder に WAV ファイルを配置
-
-  2. コマンドプロンプトで以下を実行:
-       call_helper.exe --mode=convert
-
-  3. output_folder に MP3 ファイルが作成される
-
-  4. 元の WAV ファイルは backup_folder に移動される
-
-
-==============================================================
 ログファイルについて
 ==============================================================
 
@@ -424,10 +387,6 @@ STEP 9: 通話録音機能の設定（任意）
   ● スピーカーがミュートされたまま戻らない
     → 画面右下のスピーカーアイコンをクリック
     → ミュートになっていれば解除してください
-
-  ● 「変換失敗」と表示される（WAV→MP3 変換時）
-    → FFmpeg がインストールされているか確認
-    → call_helper.exe と同じフォルダに ffmpeg.exe があるか確認
 
   ● call_helper.exe が起動しない / エラーが出る
     → Windows Defender やウイルス対策ソフトにブロックされている可能性があります
