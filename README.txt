@@ -173,7 +173,7 @@ STEP 6: config.ini の編集
 
      [recording]
      output_folder = D:\CallRecordings
-     recording_device = VoiceMeeter Output
+     recording_device = Voicemeeter Out B1
      max_duration_minutes = 120
      ---ここまで---
 
@@ -309,7 +309,7 @@ STEP 9: 通話録音機能の設定（任意）
 
     [recording]
     output_folder = D:\CallRecordings
-    recording_device = VoiceMeeter Output
+    recording_device = Voicemeeter Out B1
     max_duration_minutes = 120
 
     ● output_folder
