@@ -89,8 +89,9 @@ def find_virtual_cable_device(device_name: str) -> Optional[int]:
     見つかった場合はデバイスインデックスを、見つからなければ None を返す。
     """
     devices = sd.query_devices()
+    search = device_name.lower()
     for idx, dev in enumerate(devices):
-        if device_name in dev["name"] and dev["max_output_channels"] > 0:
+        if search in dev["name"].lower() and dev["max_output_channels"] > 0:
             logger.info("仮想ケーブルデバイスを検出: [%d] %s", idx, dev["name"])
             return idx
 
@@ -106,8 +107,9 @@ def find_input_device(device_name: str) -> Optional[int]:
     見つかった場合はデバイスインデックスを、見つからなければ None を返す。
     """
     devices = sd.query_devices()
+    search = device_name.lower()
     for idx, dev in enumerate(devices):
-        if device_name in dev["name"] and dev["max_input_channels"] > 0:
+        if search in dev["name"].lower() and dev["max_input_channels"] > 0:
             logger.info("入力デバイスを検出: [%d] %s", idx, dev["name"])
             return idx
 
