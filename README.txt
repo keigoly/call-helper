@@ -301,6 +301,67 @@ STEP 8: BlueBean との連携設定
 
 
 ==============================================================
+STEP 9: 通話録音機能の設定（任意）
+==============================================================
+
+  通話中の音声（オペレーター＋相手の両方）を自動で MP3 録音する機能です。
+  VoiceMeeter Output から音声をキャプチャするため、
+  VoiceMeeter が正しく設定されている必要があります（STEP 5 参照）。
+
+  ---------- config.ini の録音設定 ----------
+
+  config.ini に以下のセクションが追加されています:
+
+    [recording]
+    output_folder = D:\CallRecordings
+    recording_device = VoiceMeeter Output
+    max_duration_minutes = 120
+
+    ● output_folder
+      録音 MP3 ファイルの保存先フォルダ。
+      存在しない場合は自動で作成されます。
+
+    ● recording_device
+      録音に使う入力デバイス名。通常は変更不要です。
+
+    ● max_duration_minutes
+      安全上限（分）。この時間を超えると自動で録音停止します。
+
+  ---------- BlueBean の切断時アクセス設定 ----------
+
+  録音は着信応答時に自動で開始されます（STEP 8-B の設定で自動）。
+  録音を停止するには、BlueBean の「切断時アクセス」に以下を設定します。
+
+  1. BlueBean の「設定」→「コマンド連携設定」を開く
+
+  2.「切断時アクセス」の欄に以下を入力:
+
+       （フォルダのパス）\call_helper.exe --mode=stop-recording
+
+     例: C:\BlueBean-CallHelper\call_helper.exe --mode=stop-recording
+
+  3.「保存」をクリック
+
+  ---------- 録音ファイルについて ----------
+
+  録音ファイルは以下の形式で保存されます:
+
+    recording_YYYYMMDD_HHMMSS_電話番号.mp3
+
+    例: recording_20260220_141530_07032962691.mp3
+
+  ---------- 手動テスト ----------
+
+  1. 録音開始:
+       call_helper.exe --mode=record --number=0312345678
+
+  2. 数秒後に別のコマンドプロンプトで録音停止:
+       call_helper.exe --mode=stop-recording
+
+  3. output_folder に MP3 ファイルが作成されていれば成功です。
+
+
+==============================================================
 補足: WAV→MP3 変換機能について
 ==============================================================
 

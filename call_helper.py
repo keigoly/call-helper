@@ -3,6 +3,8 @@
 使い方:
     python call_helper.py --mode=incoming [--number=09012345678]
     python call_helper.py --mode=convert
+    python call_helper.py --mode=record [--number=09012345678]
+    python call_helper.py --mode=stop-recording
 """
 
 import argparse
@@ -39,8 +41,8 @@ def main() -> None:
     parser.add_argument(
         "--mode",
         required=True,
-        choices=["incoming", "convert"],
-        help="実行モード: incoming=着信時ガイダンス, convert=WAV→MP3変換",
+        choices=["incoming", "convert", "record", "stop-recording"],
+        help="実行モード: incoming=着信時ガイダンス, convert=WAV→MP3変換, record=通話録音, stop-recording=録音停止",
     )
     parser.add_argument(
         "--number",
@@ -62,6 +64,14 @@ def main() -> None:
             import converter
 
             converter.run()
+        elif args.mode == "record":
+            import recorder
+
+            recorder.run(number=args.number)
+        elif args.mode == "stop-recording":
+            import recorder
+
+            recorder.stop()
     except Exception:
         logger.exception("予期しないエラーが発生しました")
         sys.exit(1)

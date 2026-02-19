@@ -96,3 +96,20 @@ def find_virtual_cable_device(device_name: str) -> Optional[int]:
 
     logger.warning("仮想ケーブルデバイス '%s' が見つかりません", device_name)
     return None
+
+
+# ---------- 入力デバイスの検索 ----------
+
+def find_input_device(device_name: str) -> Optional[int]:
+    """sounddevice のデバイスリストから *device_name* を含む入力デバイスを検索する。
+
+    見つかった場合はデバイスインデックスを、見つからなければ None を返す。
+    """
+    devices = sd.query_devices()
+    for idx, dev in enumerate(devices):
+        if device_name in dev["name"] and dev["max_input_channels"] > 0:
+            logger.info("入力デバイスを検出: [%d] %s", idx, dev["name"])
+            return idx
+
+    logger.warning("入力デバイス '%s' が見つかりません", device_name)
+    return None
