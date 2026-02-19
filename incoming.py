@@ -1,12 +1,13 @@
 """機能A: 着信時ガイダンス制御。
 
 1. 物理マイクを即座にミュート（オペレーターの声を遮断）
-2. スピーカーをミュート（相手の声を遮断）※失敗してもガイダンス再生は続行
-3. guidance 音声ファイルの存在確認 → なければミュート解除して終了
-4. VB-CABLE Input デバイスを検索 → なければエラーログ出力＆ミュート解除して終了
-5. sounddevice + soundfile で音声を CABLE Input へ再生
-6. 再生完了を待機
-7. 物理マイクとスピーカーのミュート解除（通常通話に復帰）
+2. guidance 音声ファイルの存在確認 → なければミュート解除して終了
+3. VB-CABLE Input デバイスを検索 → なければエラーログ出力＆ミュート解除して終了
+4. sounddevice + soundfile で音声を CABLE Input へ再生
+5. 再生完了を待機（ピー音が鳴るまで）
+6. 物理マイクのミュート解除（通常通話に復帰）
+
+※ スピーカーはミュートしない（オペレーターにもガイダンスが聞こえるようにする）
 """
 
 import logging
@@ -19,8 +20,6 @@ from audio_devices import (
     find_virtual_cable_device,
     mute_physical_mic,
     unmute_physical_mic,
-    mute_speaker,
-    unmute_speaker,
 )
 from config_loader import load_config, _base_dir
 
@@ -47,14 +46,6 @@ def run(number: str | None = None) -> None:
         logger.error("マイクミュートに失敗しました。処理を中断します。")
         return
 
-    # --- 1b. スピーカーをミュート（相手の音声を遮断） ---
-    speaker_muted = False
-    try:
-        mute_speaker()
-        speaker_muted = True
-    except Exception:
-        logger.warning("スピーカーミュートに失敗しました。ガイダンス再生は続行します。")
-
     try:
         # --- 2. 音声ファイルの存在確認 ---
         guidance_file = config.get("general", "guidance_file")
@@ -76,7 +67,7 @@ def run(number: str | None = None) -> None:
             )
             return
 
-        # --- 4 & 5. 音声再生 & 完了待機 ---
+        # --- 4 & 5. 音声再生 & 完了待機（ピー音まで再生） ---
         logger.info("音声ガイダンスを再生します: %s", guidance_file)
         data, samplerate = sf.read(guidance_file, dtype="float32")
         sd.play(data, samplerate=samplerate, device=device_index)
@@ -86,13 +77,8 @@ def run(number: str | None = None) -> None:
     except Exception:
         logger.exception("ガイダンス再生中にエラーが発生しました")
     finally:
-        # --- 6. 必ずミュート解除 ---
+        # --- 6. 必ずマイクのミュート解除 ---
         try:
             unmute_physical_mic()
         except Exception:
             logger.exception("ミュート解除に失敗しました — 手動でミュート解除してください")
-        if speaker_muted:
-            try:
-                unmute_speaker()
-            except Exception:
-                logger.exception("スピーカーのミュート解除に失敗しました — 手動で解除してください")
