@@ -4,8 +4,8 @@
 - VB-CABLE Input デバイスの検索 (sounddevice)
 """
 
-import gc
 import logging
+import sys
 from typing import Optional
 
 import comtypes
@@ -22,36 +22,43 @@ _CLSID_MMDeviceEnumerator = comtypes.GUID(
 )
 
 
-def _set_mic_mute(mute: bool) -> None:
-    """デフォルト録音デバイスのミュート状態を設定する。
+# ---------- comtypes COM 解放エラーの抑制 ----------
+# comtypes の COM ポインタが GC で回収される際に Release() が失敗し
+# "Exception ignored in: <function _compointer_base.__del__>" が
+# stderr に表示される。これは comtypes 内部の既知の問題であり、
+# アプリの動作には影響しないため、このエラーのみ抑制する。
 
-    COM オブジェクトを関数内で生成・操作・解放まで完結させ、
-    ガベージコレクション時の COM ポインタ解放エラーを防ぐ。
-    """
+_original_unraisablehook = sys.unraisablehook
+
+
+def _suppress_com_cleanup_error(unraisable):
+    if "_compointer_base.__del__" in repr(unraisable.object):
+        return
+    _original_unraisablehook(unraisable)
+
+
+sys.unraisablehook = _suppress_com_cleanup_error
+
+
+# ---------- 物理マイクのミュート制御 ----------
+
+def _set_mic_mute(mute: bool) -> None:
+    """デフォルト録音デバイスのミュート状態を設定する。"""
     comtypes.CoInitialize()
     from pycaw.pycaw import IMMDeviceEnumerator
 
-    enumerator = None
-    mic = None
-    interface = None
-    volume = None
-    try:
-        enumerator = comtypes.CoCreateInstance(
-            _CLSID_MMDeviceEnumerator,
-            IMMDeviceEnumerator,
-            comtypes.CLSCTX_INPROC_SERVER,
-        )
-        # eCapture=1, eMultimedia=1
-        mic = enumerator.GetDefaultAudioEndpoint(1, 1)
-        if mic is None:
-            raise RuntimeError("デフォルトの録音デバイスが見つかりません")
-        interface = mic.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
-        volume = cast(interface, POINTER(IAudioEndpointVolume))
-        volume.SetMute(1 if mute else 0, None)
-    finally:
-        # COM オブジェクトを明示的に解放してから GC で回収
-        del volume, interface, mic, enumerator
-        gc.collect()
+    enumerator = comtypes.CoCreateInstance(
+        _CLSID_MMDeviceEnumerator,
+        IMMDeviceEnumerator,
+        comtypes.CLSCTX_INPROC_SERVER,
+    )
+    # eCapture=1, eMultimedia=1
+    mic = enumerator.GetDefaultAudioEndpoint(1, 1)
+    if mic is None:
+        raise RuntimeError("デフォルトの録音デバイスが見つかりません")
+    interface = mic.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
+    volume = cast(interface, POINTER(IAudioEndpointVolume))
+    volume.SetMute(1 if mute else 0, None)
 
 
 def mute_physical_mic() -> None:
