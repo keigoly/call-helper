@@ -104,18 +104,46 @@ def find_virtual_cable_device(device_name: str) -> Optional[int]:
 def find_input_device(device_name: str) -> Optional[int]:
     """sounddevice のデバイスリストから *device_name* を含む入力デバイスを検索する。
 
+    WASAPI デバイスを優先的に選択する（最も信頼性が高い）。
     見つかった場合はデバイスインデックスを、見つからなければ None を返す。
     """
     devices = sd.query_devices()
+    hostapis = sd.query_hostapis()
     search = device_name.lower()
+
+    # WASAPI の hostapi インデックスを特定
+    wasapi_api_idx = None
+    for api_idx, api in enumerate(hostapis):
+        if "WASAPI" in api["name"]:
+            wasapi_api_idx = api_idx
+            break
+
+    # 全マッチを収集し、WASAPI を優先
+    candidates = []
     for idx, dev in enumerate(devices):
         if search in dev["name"].lower() and dev["max_input_channels"] > 0:
-            logger.info("入力デバイスを検出: [%d] %s", idx, dev["name"])
-            return idx
+            is_wasapi = (dev.get("hostapi") == wasapi_api_idx) if wasapi_api_idx is not None else False
+            candidates.append((idx, dev, is_wasapi))
+
+    if candidates:
+        # WASAPI デバイスを優先選択
+        for idx, dev, is_wasapi in candidates:
+            if is_wasapi:
+                api_name = hostapis[dev["hostapi"]]["name"] if dev.get("hostapi") is not None else "unknown"
+                logger.info("入力デバイスを検出 (WASAPI優先): [%d] %s (API=%s, 入力ch=%d)",
+                            idx, dev["name"], api_name, dev["max_input_channels"])
+                return idx
+        # WASAPI が無ければ最初のマッチを返す
+        idx, dev, _ = candidates[0]
+        api_name = hostapis[dev["hostapi"]]["name"] if dev.get("hostapi") is not None else "unknown"
+        logger.info("入力デバイスを検出: [%d] %s (API=%s, 入力ch=%d)",
+                    idx, dev["name"], api_name, dev["max_input_channels"])
+        return idx
 
     # デバッグ用: 全入力デバイスを列挙
     logger.warning("入力デバイス '%s' が見つかりません。利用可能な入力デバイス一覧:", device_name)
     for idx, dev in enumerate(devices):
         if dev["max_input_channels"] > 0:
-            logger.warning("  [%d] %s (入力ch=%d)", idx, dev["name"], dev["max_input_channels"])
+            api_name = hostapis[dev["hostapi"]]["name"] if dev.get("hostapi") is not None else "unknown"
+            logger.warning("  [%d] %s (API=%s, 入力ch=%d)", idx, dev["name"], api_name, dev["max_input_channels"])
     return None

@@ -85,9 +85,12 @@ def run(number: str | None = None) -> None:
 
     # --- デバイス情報の自動検出 ---
     dev_info = sd.query_devices(device_index)
+    hostapis = sd.query_hostapis()
+    api_name = hostapis[dev_info["hostapi"]]["name"] if dev_info.get("hostapi") is not None else "unknown"
     max_ch = dev_info["max_input_channels"]
     channels = min(_CHANNELS, max_ch) if max_ch > 0 else _CHANNELS
     sample_rate = int(dev_info["default_samplerate"])
+    logger.info("録音デバイス API: %s", api_name)
     logger.info("録音チャンネル数: %d (デバイス最大: %d)", channels, max_ch)
     logger.info("録音サンプルレート: %d Hz (デバイスデフォルト)", sample_rate)
 
