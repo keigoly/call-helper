@@ -1,6 +1,7 @@
 """オーディオデバイス操作ユーティリティ。
 
 - 物理マイクのミュート / ミュート解除 (pycaw)
+- デフォルトスピーカーのミュート / ミュート解除 (pycaw)
 - VB-CABLE Input デバイスの検索 (sounddevice)
 """
 
@@ -78,6 +79,47 @@ def unmute_physical_mic() -> None:
         logger.info("物理マイクのミュートを解除しました")
     except Exception:
         logger.exception("物理マイクのミュート解除に失敗しました")
+        raise
+
+
+# ---------- デフォルトスピーカーのミュート制御 ----------
+
+def _set_speaker_mute(mute: bool) -> None:
+    """デフォルト再生デバイス（スピーカー）のミュート状態を設定する。"""
+    comtypes.CoInitialize()
+    from pycaw.pycaw import IMMDeviceEnumerator
+
+    enumerator = comtypes.CoCreateInstance(
+        _CLSID_MMDeviceEnumerator,
+        IMMDeviceEnumerator,
+        comtypes.CLSCTX_INPROC_SERVER,
+    )
+    # eRender=0, eMultimedia=1
+    speaker = enumerator.GetDefaultAudioEndpoint(0, 1)
+    if speaker is None:
+        raise RuntimeError("デフォルトの再生デバイスが見つかりません")
+    interface = speaker.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
+    volume = cast(interface, POINTER(IAudioEndpointVolume))
+    volume.SetMute(1 if mute else 0, None)
+
+
+def mute_default_speaker() -> None:
+    """デフォルトスピーカーをミュートする（ガイダンス再生中のハウリング防止）。"""
+    try:
+        _set_speaker_mute(True)
+        logger.info("デフォルトスピーカーをミュートしました")
+    except Exception:
+        logger.exception("スピーカーミュートに失敗しました")
+        raise
+
+
+def unmute_default_speaker() -> None:
+    """デフォルトスピーカーのミュートを解除する。"""
+    try:
+        _set_speaker_mute(False)
+        logger.info("デフォルトスピーカーのミュートを解除しました")
+    except Exception:
+        logger.exception("スピーカーミュート解除に失敗しました")
         raise
 
 

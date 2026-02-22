@@ -1,5 +1,17 @@
+# Build artifacts
 build/
 dist/
 __pycache__/
-*.spec
 *.log
+
+# Distribution archives
+*.zip
+
+# Backup files
+*_backup.*
+
+# Generated files
+docs/slides.html
+
+# IDE / tools
+.serena/

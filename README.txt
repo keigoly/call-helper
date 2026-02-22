@@ -19,12 +19,12 @@ STEP 1: フォルダの配置
      フォルダの中身が以下のようになっていれば OK です:
 
        C:\BlueBean-CallHelper\
-         call_helper.exe              ... アプリ本体
-         config.ini                   ... 設定ファイル
-         guidance.mp3                 ... 音声ガイダンス
-         VBCABLE_Driver_Pack45.zip    ... 仮想オーディオドライバ
-         VoicemeeterSetup_v2122.zip   ... 音声ミキサー（VoiceMeeter）
-         README.txt                   ... このファイル
+         音声ガイダンス試作品.exe   ... アプリ本体
+         config.ini               ... 設定ファイル
+         guidance.mp3             ... 音声ガイダンス
+         VBCABLE_Driver_Pack45.zip ... 仮想オーディオドライバ
+         VoicemeeterSetup_v2122.zip ... 音声ミキサー（VoiceMeeter）
+         README.txt               ... このファイル
 
 
 ==============================================================
@@ -125,10 +125,23 @@ STEP 5: VoiceMeeter の設定
      ※ これにより、音声ガイダンスが相手に届くようになります
 
   4. HARDWARE INPUT 1 と HARDWARE INPUT 2 の両方で
-     「B1」ボタンが点灯（有効）していることを確認する
+     「A」と「B」のボタンが点灯（有効）していることを確認する
 
-     ※ B1 が消灯している場合はクリックして有効にしてください
-     ※ B1 を有効にすると、その入力が VoiceMeeter Output に送られます
+     ※ 消灯している場合はクリックして有効にしてください
+     ※ A を有効にすると、その入力がスピーカー出力に送られます
+     ※ B を有効にすると、その入力が BlueBean のマイク出力に送られます
+
+  ---------- 重要: VIRTUAL INPUT の設定 ----------
+
+  5. VoiceMeeter の中央にある「VIRTUAL INPUT」パネルを確認する
+     → 「A」ボタンだけが点灯（有効）していることを確認する
+     → 「B」ボタンは消灯（無効）にする
+
+     ※ VIRTUAL INPUT は、BlueBean の通話音声が入ってくる入力です
+     ※ 「B」を有効にすると、通話相手の声が BlueBean マイクに
+       ループバックしてしまい、ハウリング（エコー）が発生します
+     ※ 「A」だけ有効にすれば、相手の声はオペレーターのスピーカーに
+       届きますが、相手側には戻りません
 
   ---------- 動作の仕組み ----------
 
@@ -166,7 +179,8 @@ STEP 6: config.ini の編集
 
      ---ここから---
      [general]
-     guidance_file = guidance.mp3
+     guidance_file = （フォルダのパス）\guidance.mp3
+     例: C:\BlueBean-CallHelper\guidance.mp3
 
      [audio]
      virtual_cable_name = CABLE Input (VB-Audio Virtual Cable)
@@ -179,9 +193,8 @@ STEP 6: config.ini の編集
 
   4. 変更が必要な箇所:
 
-     ● guidance_file (通常は変更不要)
-       音声ガイダンスファイルの名前です。
-       guidance.mp3 を別のファイルに差し替えた場合のみ変更してください。
+     ● guidance_file (環境に合わせて変更)
+       音声ガイダンスファイルのパスです。
 
      ● virtual_cable_name (通常は変更不要)
        STEP 2 でインストールした仮想デバイスの名前です。
@@ -221,7 +234,7 @@ STEP 7: 動作テスト
 
   4. 以下を入力して Enter キーを押す:
 
-       call_helper.exe --mode=incoming --number=0312345678
+       音声ガイダンス試作品.exe --mode=incoming --number=0312345678
 
   5. 期待される動作:
      - マイクとスピーカーが一時的にミュートされる
@@ -237,7 +250,7 @@ STEP 7: 動作テスト
      → STEP 2 と STEP 4 を確認してください
 
   ※ 「音声ファイルが見つかりません」と表示された場合:
-     → guidance.mp3 が call_helper.exe と同じフォルダにあるか確認してください
+     → guidance.mp3 が 音声ガイダンス試作品.exe と同じフォルダにあるか確認してください
      → config.ini の値にダブルクォート（"）が付いていないか確認してください
        （STEP 6 の【重要】を参照）
 
@@ -246,7 +259,9 @@ STEP 7: 動作テスト
 STEP 8: BlueBean との連携設定
 ==============================================================
 
-  BlueBean の通話応答時に自動でこのアプリが起動するように設定します。
+  BlueBean の通話応答時と切断時に自動でこのアプリが起動するように設定します。
+  これにより、着信時にガイダンスが自動再生され、通話中は自動で録音が行われ、
+  切断時に録音が停止・保存されます。
 
   ---------- 8-A: BlueBean のマイク設定 ----------
 
@@ -273,85 +288,55 @@ STEP 8: BlueBean との連携設定
 
   3.「応答時アクセス」の欄に以下を入力:
 
-       （フォルダのパス）\call_helper.exe --mode=incoming --number=
+       （フォルダのパス）\音声ガイダンス試作品.exe --mode=incoming --number=
 
-     例: C:\BlueBean-CallHelper\call_helper.exe --mode=incoming --number=
+     例: C:\BlueBean-CallHelper\音声ガイダンス試作品.exe --mode=incoming --number=
 
   4. --number= の直後にカーソルがある状態で、
      下の「相手番号」ボタンをクリック
      → 着信番号のパラメータが自動挿入されます
 
-  5.「保存」をクリック
+  5.「切断時アクセス」の欄に以下を入力:
 
-  ---------- 登録先の選び方 ----------
+       （フォルダのパス）\音声ガイダンス試作品.exe --mode=stop-recording
 
-  ● 応答時アクセス（推奨）
-    着信ボタンを押して通話を開始したタイミングでガイダンスを再生します。
+     例: C:\BlueBean-CallHelper\音声ガイダンス試作品.exe --mode=stop-recording
 
-  ● 着信時アクセス
-    電話が鳴った瞬間（応答前）にガイダンスを再生します。
+  6.「保存」をクリック
+
+  ---------- 連携の動作 ----------
+
+  ● 応答時アクセス（着信ボタンを押して通話を開始したとき）
+    → ガイダンスの自動再生 + 通話録音の自動開始
+
+  ● 切断時アクセス（通話を切断したとき）
+    → 録音を停止し、MP3 ファイルとして保存
 
   ※ パスは STEP 1 で配置した場所に合わせてください
-  ※ --number パラメータはログ記録用です。省略しても動作に影響はありません
-
-
-==============================================================
-STEP 9: 通話録音機能の設定（任意）
-==============================================================
-
-  通話中の音声（オペレーター＋相手の両方）を自動で MP3 録音する機能です。
-  VoiceMeeter Output から音声をキャプチャするため、
-  VoiceMeeter が正しく設定されている必要があります（STEP 5 参照）。
-
-  ---------- config.ini の録音設定 ----------
-
-  config.ini に以下のセクションが追加されています:
-
-    [recording]
-    output_folder = D:\CallRecordings
-    recording_device = Voicemeeter Out B1
-    max_duration_minutes = 120
-
-    ● output_folder
-      録音 MP3 ファイルの保存先フォルダ。
-      存在しない場合は自動で作成されます。
-
-    ● recording_device
-      録音に使う入力デバイス名。通常は変更不要です。
-
-    ● max_duration_minutes
-      安全上限（分）。この時間を超えると自動で録音停止します。
-
-  ---------- BlueBean の切断時アクセス設定 ----------
-
-  録音は着信応答時に自動で開始されます（STEP 8-B の設定で自動）。
-  録音を停止するには、BlueBean の「切断時アクセス」に以下を設定します。
-
-  1. BlueBean の「設定」→「コマンド連携設定」を開く
-
-  2.「切断時アクセス」の欄に以下を入力:
-
-       （フォルダのパス）\call_helper.exe --mode=stop-recording
-
-     例: C:\BlueBean-CallHelper\call_helper.exe --mode=stop-recording
-
-  3.「保存」をクリック
+  ※ --number パラメータはログ記録・ファイル名に使用されます
 
   ---------- 録音ファイルについて ----------
 
-  録音ファイルは以下の形式で保存されます:
+  録音ファイルは config.ini の output_folder に自動保存されます。
+  （フォルダが存在しない場合は自動で作成されます）
+
+  ファイル名の形式:
 
     recording_YYYYMMDD_HHMMSS_電話番号.mp3
 
     例: recording_20260220_141530_07032962691.mp3
 
+  通話ごとに日時 + 電話番号で自動的に整理されます。
+
   ---------- 手動テスト ----------
 
-  1. 録音開始:
-       call_helper.exe --mode=record --number=0312345678
+  正しく設定できたか確認するには、以下の手順でテストできます。
+
+  1. 録音開始（コマンドプロンプトで実行）:
+       音声ガイダンス試作品.exe --mode=record --number=0312345678
 
   2. 数秒後に別のコマンドプロンプトで録音停止:
-       call_helper.exe --mode=stop-recording
+       音声ガイダンス試作品.exe --mode=stop-recording
 
   3. output_folder に MP3 ファイルが作成されていれば成功です。
 
@@ -360,7 +345,7 @@ STEP 9: 通話録音機能の設定（任意）
 ログファイルについて
 ==============================================================
 
-  アプリの実行記録は call_helper.exe と同じフォルダに
+  アプリの実行記録は 音声ガイダンス試作品.exe と同じフォルダに
   「call_helper.log」として保存されます。
 
   問題が起きた場合はこのファイルの内容を確認してください。
@@ -373,12 +358,16 @@ STEP 9: 通話録音機能の設定（任意）
   ● 音声ガイダンスが相手に聞こえない
     → VoiceMeeter が起動しているか確認
     → VoiceMeeter の HARDWARE INPUT 2 に CABLE Output が設定されているか確認
-    → VoiceMeeter の B1 ボタンが両方の入力で有効になっているか確認
-    → BlueBean のマイクが VoiceMeeter Output に設定されているか確認（STEP 8-A）
+    → VoiceMeeter の INPUT 1 と INPUT 2 の A・B ボタンが両方とも有効か確認
+    → BlueBean のマイクが VoiceMeeter Out B1 に設定されているか確認（STEP 8-A）
 
   ● 自分の声が相手に聞こえない
     → VoiceMeeter の HARDWARE INPUT 1 に物理マイクが設定されているか確認
-    → VoiceMeeter の HARDWARE INPUT 1 の B1 ボタンが有効か確認
+    → VoiceMeeter の HARDWARE INPUT 1 の B ボタンが有効か確認
+
+  ● 通話相手にハウリング（エコー）が聞こえる
+    → VoiceMeeter の VIRTUAL INPUT パネルの B ボタンが無効（消灯）か確認
+    → B が有効だと相手の声がループバックします（STEP 5 参照）
 
   ● マイクがミュートされたまま戻らない
     → 画面右下のスピーカーアイコンを右クリック
@@ -388,6 +377,6 @@ STEP 9: 通話録音機能の設定（任意）
     → 画面右下のスピーカーアイコンをクリック
     → ミュートになっていれば解除してください
 
-  ● call_helper.exe が起動しない / エラーが出る
+  ● 音声ガイダンス試作品.exe が起動しない / エラーが出る
     → Windows Defender やウイルス対策ソフトにブロックされている可能性があります
     →「詳細情報」→「実行」を選ぶか、ウイルス対策ソフトの除外設定に追加してください
